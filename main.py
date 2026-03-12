@@ -1,3 +1,4 @@
+import time
 import os
 import ccxt
 from langchain_core.tools import tool
@@ -7,6 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_anthropic import ChatAnthropic
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
+from db import init_db, log_event
 
 load_dotenv()
 
@@ -59,9 +61,25 @@ auditor_llm = ChatAnthropic(model_name="claude-sonnet-4-6", timeout=10, stop=Non
 def monitor_market(state: AgentState):
     prices = get_crypto_prices.invoke({"symbols": state["symbols"]})
 
-    # Simple logic: If price gap > 0.5% between any two exchanges
-    # For this example, let's assume the monitor logic finds a 0.8% gap
-    gap_detected = True
+    # Compute the max price gap across exchanges for each symbol
+    max_gap = 0.0
+    best_symbol = None
+    for sym in state["symbols"]:
+        sym_prices = [v[sym] for v in prices.values() if isinstance(v, dict) and sym in v]
+        if len(sym_prices) >= 2:
+            gap = (max(sym_prices) - min(sym_prices)) / min(sym_prices) * 100
+            if gap > max_gap:
+                max_gap, best_symbol = gap, sym
+    gap_detected = max_gap > 0.5
+
+    log_event(
+        node="monitor",
+        model="Gemini-Flash",
+        event_type="OPPORTUNITY" if gap_detected else "WAIT",
+        message=f"Gap of {max_gap:.2f}% detected between exchanges for {best_symbol}" if gap_detected else "No gap > 0.5% found",
+        symbol=best_symbol,
+        spread_pct=max_gap if max_gap > 0 else None,
+    )
 
     return {
         "latest_prices": prices,
@@ -72,6 +90,14 @@ def monitor_market(state: AgentState):
 def audit_trade(state: AgentState):
     prompt = f"Audit this: {state['latest_prices']}. Is it profitable after 0.3% fees? Reply with GO if yes, NO if not."
     response = auditor_llm.invoke(prompt)
+
+    log_event(
+        node="auditor",
+        model="Claude-4.6",
+        event_type="AUDIT",
+        message=response.content[:500],
+        symbol=state["symbols"][0] if state["symbols"] else None,
+    )
 
     return {
         "audit_report": response.content,
@@ -88,6 +114,8 @@ def execute_trade_node(state: AgentState):
 
     if "GO" not in state["audit_report"]:
         print("🛑 Trade Aborted: Auditor did not give a GO signal.")
+        log_event(node="executor", model="System", event_type="ABORTED",
+                  message="Auditor did not give GO signal.")
         return {"decision": "ABORTED"}
 
     symbol = "BTC/USDT"
@@ -96,12 +124,23 @@ def execute_trade_node(state: AgentState):
     try:
         print(f"💸 Sending Market Buy Order for {amount} {symbol}...")
         order = exchange.create_market_buy_order(symbol, amount)
+        # Estimate profit: spread % * trade notional * 70% (after fees)
+        spread = next(
+            (e["spread_pct"] for e in [state] if isinstance(e, dict) and e.get("spread_pct")),
+            0.0
+        )
+        estimated_profit = round(spread * amount * 0.7, 4)
+        log_event(node="executor", model="System", event_type="EXECUTED",
+                  message=f"Order ID: {order['id']}. Estimated profit: ${estimated_profit:.4f}",
+                  symbol=symbol, profit_usdt=estimated_profit)
         return {
             "decision": "EXECUTED",
             "audit_report": f"Success! Order ID: {order['id']}"
         }
     except Exception as e:
         print(f"❌ Trade Execution Error: {e}")
+        log_event(node="executor", model="System", event_type="FAILED",
+                  message=str(e), symbol=symbol)
         return {"decision": "FAILED"}
 
 
@@ -127,6 +166,7 @@ builder.add_edge("executor", END)
 trading_bot = builder.compile()
 
 def main():
+    init_db()
     initial_state: AgentState = {
         "symbols": ["BTC/USDT", "ETH/USDT"],
         "latest_prices": {},
@@ -134,8 +174,13 @@ def main():
         "audit_report": None,
         "decision": "WAIT",
     }
-    result = trading_bot.invoke(initial_state)
-    print("Final state:", result)
+
+    while True:
+        result = trading_bot.invoke(initial_state)
+        print("State:", result)
+        time.sleep(60)
+
+    
 
 
 if __name__ == "__main__":
