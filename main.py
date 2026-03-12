@@ -54,7 +54,7 @@ def get_crypto_prices(symbols: List[str]) -> Dict[str, Dict[str, float]]:
 monitor_llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
 
 # Claude Sonnet 4.6: The high-precision auditor
-auditor_llm = ChatAnthropic(model_name="claude-sonnet-4-6", timeout=10)  # Longer timeout for complex reasoning
+auditor_llm = ChatAnthropic(model_name="claude-sonnet-4-6", timeout=10, stop=None)  # Longer timeout for complex reasoning
 
 def monitor_market(state: AgentState):
     prices = get_crypto_prices.invoke({"symbols": state["symbols"]})
