@@ -1,7 +1,7 @@
 import ccxt
 from langchain_core.tools import tool
 from pydantic import BaseModel
-from typing import List, TypedDict, List, Optional, TypedDict, Dict
+from typing import List, TypedDict, Optional, Dict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_anthropic import ChatAnthropic
 from langgraph.graph import StateGraph, END
