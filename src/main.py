@@ -8,7 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_anthropic import ChatAnthropic
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
-from db import init_db, log_event
+from .db import init_db, log_event
 
 load_dotenv()
 

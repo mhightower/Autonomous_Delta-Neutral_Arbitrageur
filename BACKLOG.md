@@ -2,13 +2,14 @@
 
 ## Backlog List
 
+- [] Feature:Handle Ctrl-C stop of app more graceful
 - [] Bug:Fix and confirm sandbox for Kraken
 
 ## In Progress
 
-- [] Chore:Add python test mechanism
-- [] Chore:Have LLM create tests
+- [X] Chore:Add python test mechanism
+- [X] Chore:Have LLM create initial tests
 
 ## Done
 
-<!-- Completed features -->
+- [x] Doc:Add license

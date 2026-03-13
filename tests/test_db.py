@@ -2,7 +2,7 @@ import pytest
 import sqlite3
 import os
 from unittest.mock import patch
-from db import init_db, log_event, get_connection
+from src.db import init_db, log_event, get_connection
 
 TEST_DB_PATH = "test_trading_log.db"
 
@@ -10,7 +10,7 @@ TEST_DB_PATH = "test_trading_log.db"
 @pytest.fixture(autouse=True)
 def setup_teardown_db():
     """Fixture to patch DB path and clean up after tests."""
-    with patch("db.DB_PATH", TEST_DB_PATH):
+    with patch("src.db.DB_PATH", TEST_DB_PATH):
         if os.path.exists(TEST_DB_PATH):
             os.remove(TEST_DB_PATH)
         init_db()

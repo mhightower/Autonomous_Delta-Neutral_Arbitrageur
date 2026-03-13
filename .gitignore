@@ -4,10 +4,21 @@ __pycache__/
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
+.pytest_cache/
 
 # Virtual environments
-.venv
+.venv/
 
+# Environment variables
 .env
+
+# Log files
+*.log
 trading_log.db
+
+# VSCode
+.vscode/
+
+# MacOS
+.DS_Store
