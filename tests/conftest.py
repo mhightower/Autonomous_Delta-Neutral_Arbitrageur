@@ -5,6 +5,7 @@ import pytest
 # Exchange price fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_prices():
     """Sample price data across three exchanges for BTC/USDT and ETH/USDT."""
@@ -37,6 +38,7 @@ def mock_prices_no_opportunity():
 # ---------------------------------------------------------------------------
 # LLM / agent fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_monitor_go_response():

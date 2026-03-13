@@ -7,10 +7,13 @@ from src.main import audit_trade
 def audit_state():
     return {
         "symbols": ["BTC/USDT"],
-        "latest_prices": {"binance": {"BTC/USDT": 65000}, "coinbase": {"BTC/USDT": 66000}},
+        "latest_prices": {
+            "binance": {"BTC/USDT": 65000},
+            "coinbase": {"BTC/USDT": 66000},
+        },
         "opportunity_found": True,
         "audit_report": None,
-        "decision": "AUDIT"
+        "decision": "AUDIT",
     }
 
 

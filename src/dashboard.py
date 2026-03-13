@@ -15,7 +15,8 @@ def load_events(limit=500) -> pd.DataFrame:
         con = sqlite3.connect(DB_PATH, check_same_thread=False)
         df = pd.read_sql_query(
             "SELECT * FROM trade_events ORDER BY timestamp DESC LIMIT ?",
-            con, params=(limit,)
+            con,
+            params=(limit,),
         )
         con.close()
         return df
@@ -36,7 +37,9 @@ else:
     total_profit = events[events["event_type"] == "EXECUTED"]["profit_usdt"].sum()
     spreads_today = len(events[events["event_type"] == "OPPORTUNITY"])
     executed = len(events[events["event_type"] == "EXECUTED"])
-    total_trades = len(events[events["event_type"].isin(["EXECUTED", "FAILED", "ABORTED"])])
+    total_trades = len(
+        events[events["event_type"].isin(["EXECUTED", "FAILED", "ABORTED"])]
+    )
     win_rate = f"{executed / total_trades * 100:.0f}%" if total_trades > 0 else "N/A"
 
     col1.metric("Total Profit (USDT)", f"${total_profit:.2f}")

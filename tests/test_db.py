@@ -23,7 +23,9 @@ def test_init_db():
     """Test database initialization."""
     con = sqlite3.connect(TEST_DB_PATH)
     cursor = con.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='trade_events'")
+    cursor.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='trade_events'"
+    )
     table = cursor.fetchone()
     con.close()
     assert table is not None
@@ -31,8 +33,14 @@ def test_init_db():
 
 def test_log_event():
     """Test logging an event."""
-    log_event(node="test", model="test-model", event_type="TEST", message="hello world", profit_usdt=10.5)
-    
+    log_event(
+        node="test",
+        model="test-model",
+        event_type="TEST",
+        message="hello world",
+        profit_usdt=10.5,
+    )
+
     con = sqlite3.connect(TEST_DB_PATH)
     con.row_factory = sqlite3.Row
     rows = con.execute("SELECT * FROM trade_events").fetchall()

@@ -13,9 +13,9 @@ def execute_state():
         "audit_report": "GO for trade",
         "decision": "EXECUTE",
         # spread_pct might be missing in TypedDict but main.py tries to read it from list of dicts?
-        # main.py logic: spread = next((e["spread_pct"] ...), 0.0). 
+        # main.py logic: spread = next((e["spread_pct"] ...), 0.0).
         # We pass it here to see if it picks it up if we treat state as dict.
-        "spread_pct": 1.5 
+        "spread_pct": 1.5,
     }
 
 
@@ -26,7 +26,7 @@ def test_execute_trade_success(mock_ccxt, mock_log, execute_state):
     """Test successful trade execution."""
     mock_exchange = MagicMock()
     mock_ccxt.kraken.return_value = mock_exchange
-    
+
     mock_order = {"id": "12345", "status": "closed"}
     mock_exchange.create_market_buy_order.return_value = mock_order
 
@@ -34,7 +34,7 @@ def test_execute_trade_success(mock_ccxt, mock_log, execute_state):
 
     mock_exchange.set_sandbox_mode.assert_called_with(True)
     mock_exchange.create_market_buy_order.assert_called_with("BTC/USDT", 0.01)
-    
+
     assert result["decision"] == "EXECUTED"
     assert "Success" in result["audit_report"]
     mock_log.assert_called()

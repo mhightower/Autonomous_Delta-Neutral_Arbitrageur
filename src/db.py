@@ -3,11 +3,13 @@ from datetime import datetime, timezone
 
 DB_PATH = "trading_log.db"
 
+
 def get_connection() -> sqlite3.Connection:
     con = sqlite3.connect(DB_PATH, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     return con
+
 
 def init_db():
     con = get_connection()
@@ -27,15 +29,31 @@ def init_db():
     con.commit()
     con.close()
 
-def log_event(node: str, model: str, event_type: str, message: str,
-              symbol: str = None, spread_pct: float = None, profit_usdt: float = None):
+
+def log_event(
+    node: str,
+    model: str,
+    event_type: str,
+    message: str,
+    symbol: str = None,
+    spread_pct: float = None,
+    profit_usdt: float = None,
+):
     con = get_connection()
     con.execute(
         """INSERT INTO trade_events
            (timestamp, node, model, event_type, message, symbol, spread_pct, profit_usdt)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (datetime.now(timezone.utc).isoformat(), node, model, event_type,
-         message, symbol, spread_pct, profit_usdt)
+        (
+            datetime.now(timezone.utc).isoformat(),
+            node,
+            model,
+            event_type,
+            message,
+            symbol,
+            spread_pct,
+            profit_usdt,
+        ),
     )
     con.commit()
     con.close()
