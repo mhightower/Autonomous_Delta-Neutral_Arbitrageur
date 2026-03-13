@@ -2,7 +2,7 @@ import pytest
 import sqlite3
 import os
 from unittest.mock import patch
-from src.db import init_db, log_event, get_connection
+from src.db import init_db, log_event
 
 TEST_DB_PATH = "test_trading_log.db"
 

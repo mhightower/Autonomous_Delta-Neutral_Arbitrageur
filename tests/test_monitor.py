@@ -1,6 +1,6 @@
 import pytest
-from unittest.mock import patch, MagicMock
-from src.main import monitor_market, AgentState
+from unittest.mock import patch
+from src.main import monitor_market
 
 
 @pytest.fixture
