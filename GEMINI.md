@@ -47,6 +47,37 @@ To ensure consistency and quality as this project grows, the following conventio
 - **Testing-First:** Prioritize unit tests for strategy logic and integration tests for exchange APIs.
 - **Security:** Rigorously protect API keys and sensitive configuration (e.g., using `.env` files and never committing them).
 
+## Testing (TDD)
+
+This project follows **Test-Driven Development**. All new features and bug fixes must have a corresponding test written *before* the implementation.
+
+### Workflow
+
+1. Write a failing test in `tests/` that defines the expected behavior
+2. Implement the minimum code to make the test pass
+3. Refactor if needed, keeping tests green
+4. Run `uv run pytest` to verify
+
+### Test Structure
+
+```text
+tests/
+├── __init__.py
+├── conftest.py         # shared fixtures (mock exchanges, mock LLMs)
+├── test_prices.py      # get_crypto_prices tool
+├── test_monitor.py     # monitor_market agent node
+├── test_audit.py       # audit_trade node
+└── test_db.py          # db.py event logging
+```
+
+### Running Tests
+
+```bash
+uv run pytest
+uv run pytest tests/test_prices.py   # single file
+uv run pytest -v                     # verbose output
+```
+
 ## Key Files & Directories
 - `pyproject.toml`: Project metadata and dependencies managed by `uv`.
 - `main.py`: Entry point for the application.
