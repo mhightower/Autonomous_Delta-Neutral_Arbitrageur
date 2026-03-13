@@ -99,9 +99,11 @@ def audit_trade(state: AgentState):
         symbol=state["symbols"][0] if state["symbols"] else None,
     )
 
+    is_go_signal = response.content.strip().startswith("GO")
+
     return {
         "audit_report": response.content,
-        "decision": "EXECUTE" if "GO" in response.content else "WAIT"
+        "decision": "EXECUTE" if is_go_signal else "WAIT"
     }
 
 def execute_trade_node(state: AgentState):
@@ -112,7 +114,9 @@ def execute_trade_node(state: AgentState):
     })
     exchange.set_sandbox_mode(True)  # Ensures we hit the Demo server
 
-    if "GO" not in state["audit_report"]:
+    is_go_signal = state.get("audit_report") and state["audit_report"].strip().startswith("GO")
+
+    if not is_go_signal:
         print("🛑 Trade Aborted: Auditor did not give a GO signal.")
         log_event(node="executor", model="System", event_type="ABORTED",
                   message="Auditor did not give GO signal.")
@@ -158,7 +162,8 @@ def should_audit(state):
 builder.add_conditional_edges("monitor", should_audit)
 
 def should_execute(state):
-    return "executor" if "GO" in state["audit_report"] else END
+    is_go_signal = state.get("audit_report") and state["audit_report"].strip().startswith("GO")
+    return "executor" if is_go_signal else END
 
 builder.add_conditional_edges("auditor", should_execute)
 builder.add_edge("executor", END)
