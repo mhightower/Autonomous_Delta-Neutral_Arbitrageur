@@ -24,34 +24,40 @@ This project is a sophisticated trading bot designed for delta-neutral arbitrage
 
 ### Installation
 
-1.  **Clone the repository:**
+1. **Clone the repository:**
+
     ```bash
     git clone https://github.com/your-username/Autonomous_Delta-Neutral_Arbitrageur.git
     cd Autonomous_Delta-Neutral_Arbitrageur
     ```
 
-2.  **Create and activate the virtual environment:**
+2. **Create and activate the virtual environment:**
+
     ```bash
     uv venv
     source .venv/bin/activate
     ```
 
-3.  **Install dependencies:**
+3. **Install dependencies:**
+
     ```bash
     uv sync
     ```
 
 ### Configuration
 
-1.  Create a `.env` file from the example:
+1. Create a `.env` file from the example:
+
     ```bash
     cp .env.example .env
     ```
-2.  Add your exchange API keys and any other required environment variables to the `.env` file.
+
+2. Add your exchange API keys and any other required environment variables to the `.env` file.
 
 ### Running the Bot
 
 - **Run the main application:**
+
     ```bash
     uv run main.py
     ```
