@@ -17,6 +17,9 @@ dependencies = [
     "streamlit>=1.55.0",
 ]
 
+[project.scripts]
+adna = "src.main:main"
+
 [tool.ruff]
 lint.select = ["E", "F"]
 fix = true
