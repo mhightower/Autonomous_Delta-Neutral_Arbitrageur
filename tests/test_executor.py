@@ -1,7 +1,7 @@
 import pytest
 import os
 from unittest.mock import patch, MagicMock
-from src.main import execute_trade_node
+from main import execute_trade_node
 
 
 @pytest.fixture
@@ -20,8 +20,8 @@ def execute_state():
 
 
 @patch.dict(os.environ, {"KRAKEN_API_KEY": "fake_key", "KRAKEN_SECRET": "fake_secret"})
-@patch("src.main.log_event")
-@patch("src.main.ccxt")
+@patch("main.log_event")
+@patch("main.ccxt")
 def test_execute_trade_success(mock_ccxt, mock_log, execute_state):
     """Test successful trade execution."""
     mock_exchange = MagicMock()
@@ -41,8 +41,8 @@ def test_execute_trade_success(mock_ccxt, mock_log, execute_state):
 
 
 @patch.dict(os.environ, {"KRAKEN_API_KEY": "fake_key", "KRAKEN_SECRET": "fake_secret"})
-@patch("src.main.log_event")
-@patch("src.main.ccxt")
+@patch("main.log_event")
+@patch("main.ccxt")
 def test_execute_trade_aborted(mock_ccxt, mock_log, execute_state):
     """Test execution aborts if audit report is missing GO."""
     execute_state["audit_report"] = "NO-GO, too risky"

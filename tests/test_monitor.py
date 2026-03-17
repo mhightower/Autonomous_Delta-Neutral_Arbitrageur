@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from src.main import monitor_market
+from main import monitor_market
 
 
 @pytest.fixture
@@ -14,8 +14,8 @@ def sample_state():
     }
 
 
-@patch("src.main.log_event")
-@patch("src.main.get_crypto_prices")
+@patch("main.log_event")
+@patch("main.get_crypto_prices")
 def test_monitor_market_opportunity_found(
     mock_get_prices, mock_log, sample_state, mock_prices
 ):
@@ -43,8 +43,8 @@ def test_monitor_market_opportunity_found(
     assert mock_log.call_args[1]["event_type"] == "OPPORTUNITY"
 
 
-@patch("src.main.log_event")
-@patch("src.main.get_crypto_prices")
+@patch("main.log_event")
+@patch("main.get_crypto_prices")
 def test_monitor_market_no_opportunity(
     mock_get_prices, mock_log, sample_state, mock_prices_no_opportunity
 ):

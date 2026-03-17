@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from src.main import audit_trade
+from main import audit_trade
 
 
 @pytest.fixture
@@ -17,8 +17,8 @@ def audit_state():
     }
 
 
-@patch("src.main.log_event")
-@patch("src.main.auditor_llm")
+@patch("main.log_event")
+@patch("main.auditor_llm")
 def test_audit_trade_go(mock_llm, mock_log, audit_state, mock_audit_go_response):
     """Test auditor giving a GO signal."""
     mock_response = MagicMock()
@@ -30,8 +30,8 @@ def test_audit_trade_go(mock_llm, mock_log, audit_state, mock_audit_go_response)
     assert result["decision"] == "EXECUTE"
 
 
-@patch("src.main.log_event")
-@patch("src.main.auditor_llm")
+@patch("main.log_event")
+@patch("main.auditor_llm")
 def test_audit_trade_nogo(mock_llm, mock_log, audit_state, mock_audit_nogo_response):
     """Test auditor giving a NO-GO signal."""
     mock_response = MagicMock()

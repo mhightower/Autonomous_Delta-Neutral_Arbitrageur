@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, patch
-from src.main import get_crypto_prices
+from main import get_crypto_prices
 
 
-@patch("src.main.ccxt")
+@patch("main.ccxt")
 def test_get_crypto_prices_success(mock_ccxt):
     """Test fetching prices successfully from multiple exchanges."""
     # Setup mocks for each exchange
@@ -29,7 +29,7 @@ def test_get_crypto_prices_success(mock_ccxt):
     assert result["coinbase"]["BTC/USDT"] == 65100.0
 
 
-@patch("src.main.ccxt")
+@patch("main.ccxt")
 def test_get_crypto_prices_error_handling(mock_ccxt):
     """Test that individual exchange errors are caught and reported."""
     mock_binance = MagicMock()
