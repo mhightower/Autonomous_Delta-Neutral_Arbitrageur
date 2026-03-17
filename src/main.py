@@ -55,13 +55,24 @@ def get_crypto_prices(symbols: List[str]) -> Dict[str, Dict[str, float]]:
     return results
 
 
-# Gemini 2.0 Flash: The fast, cheap monitor
-monitor_llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+monitor_llm = None
+auditor_llm = None
 
-# Claude Sonnet 4.6: The high-precision auditor
-auditor_llm = ChatAnthropic(
-    model_name="claude-sonnet-4-6", timeout=10, stop=None
-)  # Longer timeout for complex reasoning
+
+def _get_monitor_llm():
+    global monitor_llm
+    if monitor_llm is None:
+        monitor_llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+    return monitor_llm
+
+
+def _get_auditor_llm():
+    global auditor_llm
+    if auditor_llm is None:
+        auditor_llm = ChatAnthropic(
+            model_name="claude-sonnet-4-6", timeout=10, stop=None
+        )
+    return auditor_llm
 
 
 def monitor_market(state: AgentState):
@@ -100,7 +111,7 @@ def monitor_market(state: AgentState):
 
 def audit_trade(state: AgentState):
     prompt = f"Audit this: {state['latest_prices']}. Is it profitable after 0.3% fees? Reply with GO if yes, NO if not."
-    response = auditor_llm.invoke(prompt)
+    response = _get_auditor_llm().invoke(prompt)
 
     log_event(
         node="auditor",
@@ -182,20 +193,8 @@ def execute_trade_node(state: AgentState):
         return {"decision": "FAILED"}
 
 
-builder = StateGraph(AgentState)
-
-builder.add_node("monitor", monitor_market)  # Gemini Flash (Fast/Cheap)
-builder.add_node("auditor", audit_trade)  # Claude Sonnet 4.6 (High IQ)
-builder.add_node("executor", execute_trade_node)  # CCXT (The Action)
-
-builder.set_entry_point("monitor")
-
-
 def should_audit(state):
     return "auditor" if state["opportunity_found"] else END
-
-
-builder.add_conditional_edges("monitor", should_audit)
 
 
 def should_execute(state):
@@ -205,10 +204,19 @@ def should_execute(state):
     return "executor" if is_go_signal else END
 
 
-builder.add_conditional_edges("auditor", should_execute)
-builder.add_edge("executor", END)
+def build_trading_bot():
+    builder = StateGraph(AgentState)
 
-trading_bot = builder.compile()
+    builder.add_node("monitor", monitor_market)  # Gemini Flash (Fast/Cheap)
+    builder.add_node("auditor", audit_trade)  # Claude Sonnet 4.6 (High IQ)
+    builder.add_node("executor", execute_trade_node)  # CCXT (The Action)
+
+    builder.set_entry_point("monitor")
+    builder.add_conditional_edges("monitor", should_audit)
+    builder.add_conditional_edges("auditor", should_execute)
+    builder.add_edge("executor", END)
+
+    return builder.compile()
 
 
 def main():
@@ -222,7 +230,7 @@ def main():
     }
 
     while True:
-        result = trading_bot.invoke(initial_state)
+        result = build_trading_bot().invoke(initial_state)
         print("State:", result)
         time.sleep(60)
 
