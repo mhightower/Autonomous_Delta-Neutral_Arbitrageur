@@ -2,7 +2,11 @@ import streamlit as st
 import pandas as pd
 import time
 import sqlite3
+import logging
+from typing import Optional, Tuple
 from db import DB_PATH
+
+logger = logging.getLogger(__name__)
 
 st.set_page_config(page_title="Arbitrage Agent Command Center", layout="wide")
 
@@ -10,21 +14,24 @@ st.title("🤖 Autonomous Arbitrage Dashboard")
 st.sidebar.header("Agent Status: 🟢 RUNNING")
 
 
-def load_events(limit=500) -> pd.DataFrame:
+def load_events(limit=500) -> Tuple[pd.DataFrame, Optional[str]]:
     try:
-        con = sqlite3.connect(DB_PATH, check_same_thread=False)
-        df = pd.read_sql_query(
-            "SELECT * FROM trade_events ORDER BY timestamp DESC LIMIT ?",
-            con,
-            params=(limit,),
-        )
-        con.close()
-        return df
-    except Exception:
-        return pd.DataFrame()
+        with sqlite3.connect(DB_PATH, check_same_thread=False) as con:
+            df = pd.read_sql_query(
+                "SELECT * FROM trade_events ORDER BY timestamp DESC LIMIT ?",
+                con,
+                params=(limit,),
+            )
+        return df, None
+    except (sqlite3.Error, pd.errors.DatabaseError) as e:
+        error_message = f"Unable to load event data: {e}"
+        logger.exception("event=dashboard_data_load_failed")
+        return pd.DataFrame(), error_message
 
 
-events = load_events()
+events, load_error = load_events()
+if load_error:
+    st.error(load_error)
 
 # 1. Metric Row: Real-time P/L
 col1, col2, col3 = st.columns(3)

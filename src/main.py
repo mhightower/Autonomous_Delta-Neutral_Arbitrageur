@@ -1,5 +1,6 @@
 import time
 import os
+import logging
 import ccxt
 from ccxt.base.errors import BaseError, ExchangeError, NetworkError
 from langchain_core.tools import tool
@@ -12,6 +13,8 @@ from dotenv import load_dotenv
 from db import init_db, log_event
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class AgentState(TypedDict):
@@ -138,7 +141,7 @@ def execute_trade_node(state: AgentState):
     ].strip().startswith("GO")
 
     if not is_go_signal:
-        print("🛑 Trade Aborted: Auditor did not give a GO signal.")
+        logger.info("event=trade_aborted reason=auditor_no_go")
         log_event(
             node="executor",
             model="System",
@@ -158,7 +161,7 @@ def execute_trade_node(state: AgentState):
         exchange = ccxt.kraken({"apiKey": api_key, "secret": secret})
         exchange.set_sandbox_mode(True)  # Ensures we hit the Demo server
 
-        print(f"💸 Sending Market Buy Order for {amount} {symbol}...")
+        logger.info("event=trade_submit symbol=%s amount=%s", symbol, amount)
         order = exchange.create_market_buy_order(symbol, amount)
         # Estimate profit: spread % * trade notional * 70% (after fees)
         spread = float(state.get("spread_pct", 0.0) or 0.0)
@@ -175,8 +178,19 @@ def execute_trade_node(state: AgentState):
             "decision": "EXECUTED",
             "audit_report": f"Success! Order ID: {order['id']}",
         }
-    except (KeyError, NetworkError, ExchangeError, BaseError, ValueError) as e:
-        print(f"❌ Trade Execution Error: {e}")
+    except KeyError as e:
+        error_message = f"Missing required environment variable: {e}"
+        logger.exception("event=trade_execution_failed category=config_error")
+        log_event(
+            node="executor",
+            model="System",
+            event_type="FAILED",
+            message=error_message,
+            symbol=symbol,
+        )
+        raise RuntimeError(error_message) from e
+    except (NetworkError, ExchangeError, BaseError, ValueError) as e:
+        logger.exception("event=trade_execution_failed category=runtime_error")
         log_event(
             node="executor",
             model="System",
@@ -226,7 +240,7 @@ def main():
 
     while True:
         result = build_trading_bot().invoke(initial_state)
-        print("State:", result)
+        logger.info("event=state_update decision=%s", result.get("decision"))
         time.sleep(60)
 
 
