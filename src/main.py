@@ -16,6 +16,7 @@ load_dotenv()
 class AgentState(TypedDict):
     symbols: List[str]
     latest_prices: dict
+    spread_pct: float
     opportunity_found: bool
     audit_report: Optional[str]
     decision: str  # "WAIT", "AUDIT", or "EXECUTE"
@@ -104,6 +105,7 @@ def monitor_market(state: AgentState):
 
     return {
         "latest_prices": prices,
+        "spread_pct": max_gap,
         "opportunity_found": gap_detected,
         "decision": "AUDIT" if gap_detected else "WAIT",
     }
@@ -160,14 +162,7 @@ def execute_trade_node(state: AgentState):
         print(f"💸 Sending Market Buy Order for {amount} {symbol}...")
         order = exchange.create_market_buy_order(symbol, amount)
         # Estimate profit: spread % * trade notional * 70% (after fees)
-        spread = next(
-            (
-                e["spread_pct"]
-                for e in [state]
-                if isinstance(e, dict) and e.get("spread_pct")
-            ),
-            0.0,
-        )
+        spread = float(state.get("spread_pct", 0.0) or 0.0)
         estimated_profit = round(spread * amount * 0.7, 4)
         log_event(
             node="executor",
@@ -224,6 +219,7 @@ def main():
     initial_state: AgentState = {
         "symbols": ["BTC/USDT", "ETH/USDT"],
         "latest_prices": {},
+        "spread_pct": 0.0,
         "opportunity_found": False,
         "audit_report": None,
         "decision": "WAIT",
