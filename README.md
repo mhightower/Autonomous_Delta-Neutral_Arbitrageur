@@ -26,6 +26,7 @@ Autonomous Delta-Neutral Arbitrageur is an AI-assisted crypto arbitrage agent. I
 - **Test suite:** [tests](tests)
 
 The runtime loop executes these stages:
+
 1. **Monitor:** Fetches exchange tickers and calculates max spread percentage.
 2. **Audit:** Sends latest prices to the auditor model for GO/WAIT.
 3. **Execute:** If GO, places sandbox order and logs estimated profit.
