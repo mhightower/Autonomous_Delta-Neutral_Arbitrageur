@@ -1,6 +1,6 @@
 # Autonomous Delta-Neutral Arbitrageur
 
-This project is a sophisticated trading bot designed for delta-neutral arbitrage strategies in the cryptocurrency markets. It aims to profit from price discrepancies between spot and derivatives markets while maintaining a neutral exposure to the underlying asset's price movements.
+Autonomous Delta-Neutral Arbitrageur is an AI-assisted crypto arbitrage agent. It monitors cross-exchange spreads, asks an auditor model for a GO/WAIT decision, optionally executes a sandbox trade, and logs every decision to SQLite for live dashboard monitoring.
 
 ## 🚀 Core Technologies
 
@@ -10,10 +10,26 @@ This project is a sophisticated trading bot designed for delta-neutral arbitrage
 
 ## ✨ Features
 
-- **Delta-Neutral Strategy:** Implements a core arbitrage strategy to minimize market risk.
-- **Modular Architecture:** Separates concerns for exchange connectors, strategy logic, risk management, and order execution.
-- **Test-Driven Development:** Emphasizes a robust testing culture to ensure reliability.
-- **Extensible:** Designed to be extended with new exchange integrations and trading strategies.
+- **Real-time spread monitoring:** Pulls prices for configured symbols from Binance US, Coinbase, and Kraken using CCXT.
+- **Agent workflow with gated execution:** Uses a LangGraph flow with monitor -> auditor -> executor steps.
+- **AI audit before trade:** Auditor LLM evaluates whether a spread is still profitable after fees and returns GO or NO-GO.
+- **Sandbox execution path:** Places demo market orders on Kraken sandbox when audit passes.
+- **Persistent event logging:** Stores monitor, audit, and execution events in SQLite for traceability.
+- **Live command-center dashboard:** Streamlit UI shows P/L, win rate, logs, and spread trends.
+- **Automated quality checks:** Pytest + Ruff + CI security checks (Bandit and pip-audit).
+
+## 🧭 Current Architecture
+
+- **Core runtime:** [src/main.py](src/main.py)
+- **Database and logging helpers:** [src/db.py](src/db.py)
+- **Dashboard app:** [src/dashboard.py](src/dashboard.py)
+- **Test suite:** [tests](tests)
+
+The runtime loop executes these stages:
+1. **Monitor:** Fetches exchange tickers and calculates max spread percentage.
+2. **Audit:** Sends latest prices to the auditor model for GO/WAIT.
+3. **Execute:** If GO, places sandbox order and logs estimated profit.
+4. **Observe:** Dashboard reads logged events and visualizes recent behavior.
 
 ## 🏁 Getting Started
 
@@ -56,10 +72,22 @@ This project is a sophisticated trading bot designed for delta-neutral arbitrage
 
 ### Running the Bot
 
-- **Run the main application:**
+- **Run the trading agent:**
 
     ```bash
-    uv run main.py
+    uv run adna
+    ```
+
+    or
+
+    ```bash
+    uv run python src/main.py
+    ```
+
+- **Run the dashboard:**
+
+    ```bash
+    uv run streamlit run src/dashboard.py
     ```
 
 ## 🧪 Testing
