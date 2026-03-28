@@ -1,19 +1,18 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from ccxt.base.errors import NetworkError
 from main import get_crypto_prices
 
 
-@patch("main.ccxt")
-def test_get_crypto_prices_success(mock_ccxt):
+def test_get_crypto_prices_success(mock_ccxt_module):
     """Test fetching prices successfully from multiple exchanges."""
     # Setup mocks for each exchange
     mock_binance = MagicMock()
     mock_coinbase = MagicMock()
     mock_kraken = MagicMock()
 
-    mock_ccxt.binanceus.return_value = mock_binance
-    mock_ccxt.coinbase.return_value = mock_coinbase
-    mock_ccxt.kraken.return_value = mock_kraken
+    mock_ccxt_module.binanceus.return_value = mock_binance
+    mock_ccxt_module.coinbase.return_value = mock_coinbase
+    mock_ccxt_module.kraken.return_value = mock_kraken
 
     # Mock fetch_tickers behavior
     mock_binance.fetch_tickers.return_value = {"BTC/USDT": {"close": 65000.0}}
@@ -30,11 +29,10 @@ def test_get_crypto_prices_success(mock_ccxt):
     assert result["coinbase"]["BTC/USDT"] == 65100.0
 
 
-@patch("main.ccxt")
-def test_get_crypto_prices_error_handling(mock_ccxt):
+def test_get_crypto_prices_error_handling(mock_ccxt_module):
     """Test that individual exchange errors are caught and reported."""
     mock_binance = MagicMock()
-    mock_ccxt.binanceus.return_value = mock_binance
+    mock_ccxt_module.binanceus.return_value = mock_binance
     mock_binance.fetch_tickers.side_effect = NetworkError("Network Error")
 
     result = get_crypto_prices.invoke({"symbols": ["BTC/USDT"]})

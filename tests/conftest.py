@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 
 
 # ---------------------------------------------------------------------------
@@ -56,3 +57,57 @@ def mock_audit_go_response():
 def mock_audit_nogo_response():
     """Simulates the audit agent rejecting a trade."""
     return "NO-GO — spread insufficient after fees."
+
+
+# ---------------------------------------------------------------------------
+# Shared state and patch fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def state_factory():
+    """Builds a default AgentState and allows per-test overrides."""
+
+    def _factory(**overrides):
+        state = {
+            "symbols": ["BTC/USDT"],
+            "latest_prices": {},
+            "spread_pct": 0.0,
+            "opportunity_found": False,
+            "audit_report": None,
+            "decision": "WAIT",
+        }
+        state.update(overrides)
+        return state
+
+    return _factory
+
+
+@pytest.fixture
+def fake_kraken_env(monkeypatch):
+    monkeypatch.setenv("KRAKEN_API_KEY", "fake_key")
+    monkeypatch.setenv("KRAKEN_SECRET", "fake_secret")
+
+
+@pytest.fixture
+def mock_log_event():
+    with patch("main.log_event") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_ccxt_module():
+    with patch("main.ccxt") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_get_crypto_prices_tool():
+    with patch("main.get_crypto_prices") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_auditor_llm():
+    with patch("main.auditor_llm") as mock:
+        yield mock
