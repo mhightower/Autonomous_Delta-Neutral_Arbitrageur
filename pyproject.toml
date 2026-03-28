@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "autonomous-delta-neutral-arbitrageur"
 version = "0.1.0"
@@ -19,6 +23,9 @@ dependencies = [
 
 [project.scripts]
 adna = "src.main:main"
+
+[tool.setuptools]
+packages = ["src"]
 
 [tool.ruff]
 lint.select = ["E", "F"]
