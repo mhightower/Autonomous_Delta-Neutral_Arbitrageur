@@ -33,5 +33,14 @@ jobs:
     - name: Format Check
       run: uv run ruff format --check .
 
+    - name: Install security tools
+      run: pip install bandit pip-audit
+
+    - name: Security Scan (Bandit)
+      run: bandit -q -r src
+
+    - name: Dependency Audit (pip-audit)
+      run: pip-audit
+
     - name: Run tests
       run: uv run pytest
