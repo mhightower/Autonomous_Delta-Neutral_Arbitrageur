@@ -52,8 +52,13 @@ def test_graph_end_to_end_executes_trade(monkeypatch, state_factory):
     assert result["decision"] == "EXECUTED"
     assert "Success!" in result["audit_report"]
     mock_log.assert_called()
-    assert all("run_id=run-e2e" in call.kwargs["message"] for call in mock_log.call_args_list)
-    assert all("cycle_id=cycle-e2e" in call.kwargs["message"] for call in mock_log.call_args_list)
+    assert all(
+        "run_id=run-e2e" in call.kwargs["message"] for call in mock_log.call_args_list
+    )
+    assert all(
+        "cycle_id=cycle-e2e" in call.kwargs["message"]
+        for call in mock_log.call_args_list
+    )
 
 
 def test_graph_degraded_market_data_waits(state_factory):

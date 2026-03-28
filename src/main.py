@@ -359,13 +359,13 @@ def register_signal_handlers(stop_event: threading.Event):
 
     def _handle_signal(signum, _frame):
         signal_name = signal.Signals(signum).name
-        logger.info(
-            "event=shutdown_requested reason=signal signal=%s", signal_name
-        )
+        logger.info("event=shutdown_requested reason=signal signal=%s", signal_name)
         stop_event.set()
 
     for handled_signal in (signal.SIGINT, signal.SIGTERM):
-        previous_handlers[handled_signal] = signal.signal(handled_signal, _handle_signal)
+        previous_handlers[handled_signal] = signal.signal(
+            handled_signal, _handle_signal
+        )
 
     return previous_handlers
 
@@ -414,7 +414,12 @@ def run_trading_loop(stop_event: threading.Event, max_cycles: Optional[int] = No
         cycle_state = {**base_state, "cycle_id": cycle_id}
         cycle_started_at = time.perf_counter()
 
-        logger.info("event=cycle_started run_id=%s cycle=%s cycle_id=%s", run_id, cycle_count, cycle_id)
+        logger.info(
+            "event=cycle_started run_id=%s cycle=%s cycle_id=%s",
+            run_id,
+            cycle_count,
+            cycle_id,
+        )
         result = graph.invoke(cycle_state)
         cycle_duration_ms = round((time.perf_counter() - cycle_started_at) * 1000, 2)
         total_cycle_duration_ms += cycle_duration_ms
