@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
 import time
-import sqlite3
 import logging
+import sqlite3
 from typing import Optional, Tuple
-from db import DB_PATH
+from db import fetch_trade_events
 
 logger = logging.getLogger(__name__)
 
@@ -16,14 +16,10 @@ st.sidebar.header("Agent Status: 🟢 RUNNING")
 
 def load_events(limit=500) -> Tuple[pd.DataFrame, Optional[str]]:
     try:
-        with sqlite3.connect(DB_PATH, check_same_thread=False) as con:
-            df = pd.read_sql_query(
-                "SELECT * FROM trade_events ORDER BY timestamp DESC LIMIT ?",
-                con,
-                params=(limit,),
-            )
+        rows = fetch_trade_events(limit)
+        df = pd.DataFrame([dict(row) for row in rows])
         return df, None
-    except (sqlite3.Error, pd.errors.DatabaseError) as e:
+    except (sqlite3.Error, ValueError, TypeError) as e:
         error_message = f"Unable to load event data: {e}"
         logger.exception("event=dashboard_data_load_failed")
         return pd.DataFrame(), error_message
