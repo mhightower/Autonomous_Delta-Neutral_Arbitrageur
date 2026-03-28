@@ -15,7 +15,12 @@ from main import (
 
 
 def test_graph_end_to_end_executes_trade(monkeypatch, state_factory):
-    initial_state = state_factory(symbols=["BTC/USDT"], decision="WAIT")
+    initial_state = state_factory(
+        symbols=["BTC/USDT"],
+        decision="WAIT",
+        run_id="run-e2e",
+        cycle_id="cycle-e2e",
+    )
 
     high_gap_prices = {
         "binance": {"BTC/USDT": 65000.0},
@@ -47,6 +52,8 @@ def test_graph_end_to_end_executes_trade(monkeypatch, state_factory):
     assert result["decision"] == "EXECUTED"
     assert "Success!" in result["audit_report"]
     mock_log.assert_called()
+    assert all("run_id=run-e2e" in call.kwargs["message"] for call in mock_log.call_args_list)
+    assert all("cycle_id=cycle-e2e" in call.kwargs["message"] for call in mock_log.call_args_list)
 
 
 def test_graph_degraded_market_data_waits(state_factory):
@@ -90,6 +97,15 @@ def test_execute_trade_missing_env_vars_raises(state_factory, monkeypatch):
             execute_trade_node(execute_state)
 
     mock_log.assert_called_once()
+    assert "run_id=test-run" in mock_log.call_args.kwargs["message"]
+
+
+def test_get_metrics_log_every_cycles_invalid_value_falls_back(monkeypatch):
+    from main import get_metrics_log_every_cycles
+
+    monkeypatch.setenv("METRICS_LOG_EVERY_CYCLES", "invalid")
+
+    assert get_metrics_log_every_cycles() == 5
 
 
 def test_get_loop_interval_seconds_invalid_value_falls_back(monkeypatch):
@@ -118,18 +134,27 @@ def test_register_signal_handlers_sets_stop_event_on_signal():
 
 def test_run_trading_loop_initializes_and_runs_single_iteration():
     mock_graph = MagicMock()
-    mock_graph.invoke.return_value = {"decision": "WAIT"}
+    mock_graph.invoke.return_value = {
+        "decision": "WAIT",
+        "audit_duration_ms": 0.0,
+        "execution_duration_ms": 0.0,
+    }
     stop_event = threading.Event()
 
     with (
         patch("main.init_db") as mock_init,
         patch("main.build_trading_bot", return_value=mock_graph),
         patch("main.get_loop_interval_seconds", return_value=0.01),
+        patch("main.get_metrics_log_every_cycles", return_value=1),
+        patch("main.logger.info") as mock_logger,
     ):
         run_trading_loop(stop_event, max_cycles=1)
 
     mock_init.assert_called_once()
     mock_graph.invoke.assert_called_once()
+    assert any(
+        "event=metrics_summary" in call.args[0] for call in mock_logger.call_args_list
+    )
 
 
 def test_main_handles_keyboard_interrupt_gracefully():

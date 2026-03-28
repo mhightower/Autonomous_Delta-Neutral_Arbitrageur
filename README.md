@@ -149,7 +149,9 @@ The runtime loop executes these stages:
 
 1. Confirm `.env` has required API credentials.
 2. Check recent agent logs for `trade_execution_failed` and `dashboard_data_load_failed` events.
-3. Re-run security and dependency checks locally:
+3. Use `run_id` and `cycle_id` from logs to correlate monitor, auditor, and executor actions within the same cycle.
+4. Check `metrics_summary` log lines for aggregate wait, executed, failed, and aborted counts plus average cycle/audit/execution latency.
+5. Re-run security and dependency checks locally:
 
     ```bash
     uv run --with pip-audit pip-audit --ignore-vuln CVE-2026-4539

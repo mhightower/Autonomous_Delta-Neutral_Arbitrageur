@@ -75,6 +75,10 @@ def state_factory():
             "spread_pct": 0.0,
             "opportunity_found": False,
             "audit_report": None,
+            "run_id": "test-run",
+            "cycle_id": "test-cycle",
+            "audit_duration_ms": 0.0,
+            "execution_duration_ms": 0.0,
             "decision": "WAIT",
         }
         state.update(overrides)
