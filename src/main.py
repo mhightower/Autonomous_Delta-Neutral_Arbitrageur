@@ -1,6 +1,8 @@
 import time
 import os
 import logging
+import signal
+import threading
 import ccxt
 from ccxt.base.errors import BaseError, ExchangeError, NetworkError
 from langchain_core.tools import tool
@@ -13,6 +15,8 @@ from db import init_db, log_event
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+DEFAULT_LOOP_INTERVAL_SECONDS = 60.0
 
 
 class AgentState(TypedDict):
@@ -209,7 +213,52 @@ def build_trading_bot():
     return builder.compile()
 
 
-def main():
+def get_loop_interval_seconds() -> float:
+    raw_value = os.getenv("LOOP_INTERVAL_SECONDS", str(DEFAULT_LOOP_INTERVAL_SECONDS))
+
+    try:
+        interval = float(raw_value)
+    except ValueError:
+        logger.warning(
+            "event=invalid_loop_interval raw_value=%s fallback=%s",
+            raw_value,
+            DEFAULT_LOOP_INTERVAL_SECONDS,
+        )
+        return DEFAULT_LOOP_INTERVAL_SECONDS
+
+    if interval <= 0:
+        logger.warning(
+            "event=non_positive_loop_interval raw_value=%s fallback=%s",
+            raw_value,
+            DEFAULT_LOOP_INTERVAL_SECONDS,
+        )
+        return DEFAULT_LOOP_INTERVAL_SECONDS
+
+    return interval
+
+
+def register_signal_handlers(stop_event: threading.Event):
+    previous_handlers = {}
+
+    def _handle_signal(signum, _frame):
+        signal_name = signal.Signals(signum).name
+        logger.info(
+            "event=shutdown_requested reason=signal signal=%s", signal_name
+        )
+        stop_event.set()
+
+    for handled_signal in (signal.SIGINT, signal.SIGTERM):
+        previous_handlers[handled_signal] = signal.signal(handled_signal, _handle_signal)
+
+    return previous_handlers
+
+
+def restore_signal_handlers(previous_handlers):
+    for handled_signal, previous_handler in previous_handlers.items():
+        signal.signal(handled_signal, previous_handler)
+
+
+def run_trading_loop(stop_event: threading.Event, max_cycles: Optional[int] = None):
     init_db()
     initial_state: AgentState = {
         "symbols": ["BTC/USDT", "ETH/USDT"],
@@ -219,11 +268,58 @@ def main():
         "audit_report": None,
         "decision": "WAIT",
     }
+    graph = build_trading_bot()
+    loop_interval_seconds = get_loop_interval_seconds()
+    cycle_count = 0
 
-    while True:
-        result = build_trading_bot().invoke(initial_state)
-        logger.info("event=state_update decision=%s", result.get("decision"))
-        time.sleep(60)
+    logger.info(
+        "event=agent_started loop_interval_seconds=%s", loop_interval_seconds
+    )
+
+    while not stop_event.is_set():
+        cycle_count += 1
+        logger.info("event=cycle_started cycle=%s", cycle_count)
+        result = graph.invoke(initial_state)
+        logger.info(
+            "event=state_update cycle=%s decision=%s",
+            cycle_count,
+            result.get("decision"),
+        )
+
+        if max_cycles is not None and cycle_count >= max_cycles:
+            logger.info(
+                "event=loop_stopped reason=max_cycles cycles=%s", cycle_count
+            )
+            break
+
+        if stop_event.wait(loop_interval_seconds):
+            logger.info(
+                "event=loop_stopped reason=shutdown_requested cycles=%s", cycle_count
+            )
+            break
+
+    logger.info(
+        "event=agent_stopped cycles=%s stop_requested=%s",
+        cycle_count,
+        stop_event.is_set(),
+    )
+
+
+def main():
+    stop_event = threading.Event()
+    previous_handlers = register_signal_handlers(stop_event)
+
+    try:
+        run_trading_loop(stop_event)
+    except KeyboardInterrupt:
+        logger.info("event=shutdown_requested reason=keyboard_interrupt")
+        stop_event.set()
+    except Exception:
+        logger.exception("event=agent_crashed")
+        raise
+    finally:
+        restore_signal_handlers(previous_handlers)
+        logger.info("event=shutdown_complete")
 
 
 if __name__ == "__main__":

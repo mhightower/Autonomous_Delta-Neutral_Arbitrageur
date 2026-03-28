@@ -1,8 +1,17 @@
 from unittest.mock import MagicMock, patch
+import signal
+import threading
 
 import pytest
 
-from main import build_trading_bot, execute_trade_node, main
+from main import (
+    build_trading_bot,
+    execute_trade_node,
+    get_loop_interval_seconds,
+    main,
+    register_signal_handlers,
+    run_trading_loop,
+)
 
 
 def test_graph_end_to_end_executes_trade(monkeypatch, state_factory):
@@ -83,17 +92,53 @@ def test_execute_trade_missing_env_vars_raises(state_factory, monkeypatch):
     mock_log.assert_called_once()
 
 
-def test_main_initializes_and_runs_single_iteration_before_interrupt():
+def test_get_loop_interval_seconds_invalid_value_falls_back(monkeypatch):
+    monkeypatch.setenv("LOOP_INTERVAL_SECONDS", "invalid")
+
+    assert get_loop_interval_seconds() == 60.0
+
+
+def test_register_signal_handlers_sets_stop_event_on_signal():
+    stop_event = threading.Event()
+    registered_handlers = {}
+
+    def fake_signal(sig, handler):
+        registered_handlers[sig] = handler
+        return signal.SIG_DFL
+
+    with patch("main.signal.signal", side_effect=fake_signal):
+        previous_handlers = register_signal_handlers(stop_event)
+
+    assert signal.SIGTERM in previous_handlers
+    assert signal.SIGTERM in registered_handlers
+
+    registered_handlers[signal.SIGTERM](signal.SIGTERM, None)
+    assert stop_event.is_set() is True
+
+
+def test_run_trading_loop_initializes_and_runs_single_iteration():
     mock_graph = MagicMock()
     mock_graph.invoke.return_value = {"decision": "WAIT"}
+    stop_event = threading.Event()
 
     with (
         patch("main.init_db") as mock_init,
         patch("main.build_trading_bot", return_value=mock_graph),
-        patch("main.time.sleep", side_effect=KeyboardInterrupt),
+        patch("main.get_loop_interval_seconds", return_value=0.01),
     ):
-        with pytest.raises(KeyboardInterrupt):
-            main()
+        run_trading_loop(stop_event, max_cycles=1)
 
     mock_init.assert_called_once()
     mock_graph.invoke.assert_called_once()
+
+
+def test_main_handles_keyboard_interrupt_gracefully():
+    with (
+        patch("main.register_signal_handlers", return_value={}) as mock_register,
+        patch("main.restore_signal_handlers") as mock_restore,
+        patch("main.run_trading_loop", side_effect=KeyboardInterrupt),
+    ):
+        main()
+
+    mock_register.assert_called_once()
+    mock_restore.assert_called_once_with({})
