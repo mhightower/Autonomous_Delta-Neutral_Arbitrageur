@@ -1,0 +1,28 @@
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    command: uv run adna
+    restart: unless-stopped
+    volumes:
+      - ./:/app
+    profiles: ["agent", "full"]
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    command: uv run streamlit run src/dashboard.py --server.address=0.0.0.0 --server.port=8501
+    restart: unless-stopped
+    depends_on:
+      - agent
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./:/app
+    profiles: ["dashboard", "full"]

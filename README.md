@@ -90,6 +90,72 @@ The runtime loop executes these stages:
     uv run streamlit run src/dashboard.py
     ```
 
+## 🛠️ DevOps Runbook
+
+### Containerized local deployment
+
+- **Build image:**
+
+    ```bash
+    docker build -t adna:local .
+    ```
+
+- **Run agent only (compose profile):**
+
+    ```bash
+    docker compose --profile agent up --build
+    ```
+
+- **Run dashboard only (compose profile):**
+
+    ```bash
+    docker compose --profile dashboard up --build
+    ```
+
+- **Run full stack (agent + dashboard):**
+
+    ```bash
+    docker compose --profile full up --build
+    ```
+
+### Deployment confidence checklist
+
+1. Validate formatting and lint checks pass.
+2. Run tests with coverage threshold.
+3. Run dependency and security audits.
+4. Verify entrypoint smoke test for `adna`.
+
+### Operational commands
+
+- **Stop compose services:**
+
+    ```bash
+    docker compose down
+    ```
+
+- **Follow agent logs:**
+
+    ```bash
+    docker compose logs -f agent
+    ```
+
+- **Follow dashboard logs:**
+
+    ```bash
+    docker compose logs -f dashboard
+    ```
+
+### Incident triage quickstart
+
+1. Confirm `.env` has required API credentials.
+2. Check recent agent logs for `trade_execution_failed` and `dashboard_data_load_failed` events.
+3. Re-run security and dependency checks locally:
+
+    ```bash
+    uv run --with pip-audit pip-audit --ignore-vuln CVE-2026-4539
+    uv run --with bandit bandit -q -r src
+    ```
+
 ## 🧪 Testing
 
 This project follows Test-Driven Development (TDD).
