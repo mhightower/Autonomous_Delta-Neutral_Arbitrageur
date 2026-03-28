@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock, patch
+from ccxt.base.errors import NetworkError
 from main import get_crypto_prices
 
 
@@ -34,7 +35,7 @@ def test_get_crypto_prices_error_handling(mock_ccxt):
     """Test that individual exchange errors are caught and reported."""
     mock_binance = MagicMock()
     mock_ccxt.binanceus.return_value = mock_binance
-    mock_binance.fetch_tickers.side_effect = Exception("Network Error")
+    mock_binance.fetch_tickers.side_effect = NetworkError("Network Error")
 
     result = get_crypto_prices.invoke({"symbols": ["BTC/USDT"]})
     assert "Error: Network Error" in str(result["binance"])

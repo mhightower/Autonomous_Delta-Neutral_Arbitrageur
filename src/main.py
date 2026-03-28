@@ -1,6 +1,7 @@
 import time
 import os
 import ccxt
+from ccxt.base.errors import BaseError, ExchangeError, NetworkError
 from langchain_core.tools import tool
 from pydantic import BaseModel
 from typing import List, TypedDict, Optional, Dict
@@ -50,7 +51,7 @@ def get_crypto_prices(symbols: List[str]) -> Dict[str, Dict[str, float]]:
             # Public APIs like fetch_tickers do NOT require API keys.
             tickers = ex.fetch_tickers(symbols)
             results[name] = {s: tickers[s]["close"] for s in symbols if s in tickers}
-        except Exception as e:
+        except (NetworkError, ExchangeError, BaseError, KeyError, TypeError) as e:
             results[name] = f"Error: {str(e)}"
 
     return results
@@ -132,15 +133,6 @@ def audit_trade(state: AgentState):
 
 
 def execute_trade_node(state: AgentState):
-    # Initialize the exchange in Sandbox mode
-    exchange = ccxt.kraken(
-        {
-            "apiKey": os.environ["KRAKEN_API_KEY"],
-            "secret": os.environ["KRAKEN_SECRET"],
-        }
-    )
-    exchange.set_sandbox_mode(True)  # Ensures we hit the Demo server
-
     is_go_signal = state.get("audit_report") and state[
         "audit_report"
     ].strip().startswith("GO")
@@ -159,6 +151,13 @@ def execute_trade_node(state: AgentState):
     amount = 0.01  # Small test amount
 
     try:
+        api_key = os.environ["KRAKEN_API_KEY"]
+        secret = os.environ["KRAKEN_SECRET"]
+
+        # Initialize the exchange in Sandbox mode.
+        exchange = ccxt.kraken({"apiKey": api_key, "secret": secret})
+        exchange.set_sandbox_mode(True)  # Ensures we hit the Demo server
+
         print(f"💸 Sending Market Buy Order for {amount} {symbol}...")
         order = exchange.create_market_buy_order(symbol, amount)
         # Estimate profit: spread % * trade notional * 70% (after fees)
@@ -176,7 +175,7 @@ def execute_trade_node(state: AgentState):
             "decision": "EXECUTED",
             "audit_report": f"Success! Order ID: {order['id']}",
         }
-    except Exception as e:
+    except (KeyError, NetworkError, ExchangeError, BaseError, ValueError) as e:
         print(f"❌ Trade Execution Error: {e}")
         log_event(
             node="executor",
@@ -185,7 +184,7 @@ def execute_trade_node(state: AgentState):
             message=str(e),
             symbol=symbol,
         )
-        return {"decision": "FAILED"}
+        return {"decision": "FAILED", "error": str(e)}
 
 
 def should_audit(state):
