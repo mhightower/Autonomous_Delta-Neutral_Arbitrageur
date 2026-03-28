@@ -4,9 +4,7 @@ import logging
 import ccxt
 from ccxt.base.errors import BaseError, ExchangeError, NetworkError
 from langchain_core.tools import tool
-from pydantic import BaseModel
 from typing import List, TypedDict, Optional, Dict
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_anthropic import ChatAnthropic
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
@@ -24,14 +22,6 @@ class AgentState(TypedDict):
     opportunity_found: bool
     audit_report: Optional[str]
     decision: str  # "WAIT", "AUDIT", or "EXECUTE"
-
-
-class TradeState(BaseModel):
-    asset: str
-    prices: Dict[str, float]  # e.g., {"coinbase": 65002, "kraken": 65110}
-    fees: float
-    risk_approval: bool = False
-    execution_status: str = "pending"
 
 
 @tool
@@ -59,16 +49,7 @@ def get_crypto_prices(symbols: List[str]) -> Dict[str, Dict[str, float]]:
 
     return results
 
-
-monitor_llm = None
 auditor_llm = None
-
-
-def _get_monitor_llm():
-    global monitor_llm
-    if monitor_llm is None:
-        monitor_llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
-    return monitor_llm
 
 
 def _get_auditor_llm():
