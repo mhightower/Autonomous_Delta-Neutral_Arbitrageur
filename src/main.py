@@ -12,7 +12,11 @@ from typing import List, TypedDict, Optional, Dict
 from langchain_anthropic import ChatAnthropic
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
-from db import init_db, log_event
+
+try:
+    from .db import init_db, log_event
+except ImportError:
+    from db import init_db, log_event
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)

@@ -28,7 +28,7 @@ jobs:
       run: uv sync
 
     - name: Entrypoint Smoke Test
-      run: uv run python -c "import shutil; assert shutil.which('adna'), 'adna entrypoint not installed'"
+      run: uv run python -c "import shutil; assert shutil.which('adna'), 'adna entrypoint not installed'; from src.main import main"
 
     - name: Lint
       run: uv run ruff check --ignore E501 .

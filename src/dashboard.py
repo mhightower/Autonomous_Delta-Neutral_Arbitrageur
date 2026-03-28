@@ -4,7 +4,11 @@ import time
 import logging
 import sqlite3
 from typing import Optional, Tuple
-from db import fetch_trade_events
+
+try:
+    from .db import fetch_trade_events
+except ImportError:
+    from db import fetch_trade_events
 
 logger = logging.getLogger(__name__)
 
