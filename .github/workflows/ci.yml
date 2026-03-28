@@ -46,4 +46,4 @@ jobs:
       run: pip-audit --ignore-vuln CVE-2026-4539
 
     - name: Run tests
-      run: uv run pytest
+      run: uv run pytest --cov=src --cov-report=term-missing --cov-fail-under=65
