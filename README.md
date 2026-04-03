@@ -32,6 +32,17 @@ The runtime loop executes these stages:
 3. **Execute:** If GO, places sandbox order and logs estimated profit.
 4. **Observe:** Dashboard reads logged events and visualizes recent behavior.
 
+## 📊 Dashboard Preview
+
+![Autonomous Arbitrage Dashboard](assets/dashboard-screenshot.png)
+
+The live dashboard displays:
+- **Total Profit (USDT)**: Cumulative profits from executed trades
+- **Active Spreads Found**: Number of profitable opportunities detected
+- **Win Rate**: Percentage of executed trades vs total attempted trades
+- **Agent Reasoning Logs**: Real-time logs from Monitor, Auditor, and Executor components
+- **Live Spread Monitoring**: Time-series chart showing spread percentages over time
+
 ## 🏁 Getting Started
 
 ### Prerequisites
