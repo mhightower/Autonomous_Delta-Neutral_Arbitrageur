@@ -37,6 +37,7 @@ The runtime loop executes these stages:
 ![Autonomous Arbitrage Dashboard](assets/dashboard-screenshot.png)
 
 The live dashboard displays:
+
 - **Total Profit (USDT)**: Cumulative profits from executed trades
 - **Active Spreads Found**: Number of profitable opportunities detected
 - **Win Rate**: Percentage of executed trades vs total attempted trades
