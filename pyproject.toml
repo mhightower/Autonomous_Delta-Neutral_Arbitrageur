@@ -41,7 +41,9 @@ quote-style = "double"
 dev = [
     "pytest>=9.0.2",
     "pytest-cov>=6.3.0",
-    "ruff>=0.1.0"
+    "ruff>=0.1.0",
+    "bandit>=1.7.0",
+    "pip-audit>=2.0"
 ]
 
 [tool.pytest.ini_options]
