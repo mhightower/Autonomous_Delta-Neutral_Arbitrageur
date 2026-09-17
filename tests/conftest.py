@@ -80,6 +80,11 @@ def state_factory():
             "audit_duration_ms": 0.0,
             "execution_duration_ms": 0.0,
             "decision": "WAIT",
+            "best_symbol": None,
+            "best_buy_exchange": None,
+            "best_sell_exchange": None,
+            "best_buy_price": 0.0,
+            "best_sell_price": 0.0,
         }
         state.update(overrides)
         return state

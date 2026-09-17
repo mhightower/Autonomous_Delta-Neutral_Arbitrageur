@@ -21,6 +21,11 @@ def test_monitor_market_opportunity_found(
     assert result["decision"] == "AUDIT"
     assert result["latest_prices"] == high_gap_prices
     assert result["spread_pct"] > 0.5
+    assert result["best_symbol"] == "BTC/USDT"
+    assert result["best_buy_exchange"] == "binance"
+    assert result["best_sell_exchange"] == "coinbase"
+    assert result["best_buy_price"] == 65000.0
+    assert result["best_sell_price"] == 66000.0
     mock_log_event.assert_called_once()
     assert mock_log_event.call_args[1]["event_type"] == "OPPORTUNITY"
 

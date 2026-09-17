@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_LOOP_INTERVAL_SECONDS = 60.0
 DEFAULT_METRICS_LOG_EVERY_CYCLES = 5
+TOTAL_FEE_RATE = 0.003
+DEFAULT_ORDER_AMOUNT = 0.01
 
 
 class AgentState(TypedDict):
@@ -37,13 +39,32 @@ class AgentState(TypedDict):
     audit_duration_ms: float
     execution_duration_ms: float
     decision: str  # "WAIT", "AUDIT", or "EXECUTE"
+    best_symbol: Optional[str]
+    best_buy_exchange: Optional[str]
+    best_sell_exchange: Optional[str]
+    best_buy_price: float
+    best_sell_price: float
+
+
+def _extract_reference_price(ticker: Dict) -> Optional[float]:
+    bid = ticker.get("bid")
+    ask = ticker.get("ask")
+    if bid is not None and ask is not None and bid > 0 and ask > 0:
+        return (bid + ask) / 2
+
+    close = ticker.get("close")
+    if close is not None and close > 0:
+        return close
+
+    return None
 
 
 @tool
-def get_crypto_prices(symbols: List[str]) -> Dict[str, Dict[str, float]]:
+def get_crypto_prices(symbols: List[str]) -> dict[str, dict[str, float] | str]:
     """
-    Fetches real-time mid-market prices for a list of symbols
-    from Binance, Coinbase, and Kraken. Use this to find arbitrage gaps.
+    Fetch reference prices for a list of symbols from Binance, Coinbase,
+    and Kraken. Uses the bid/ask midpoint when available, otherwise falls
+    back to the last close price.
     Example input: ["BTC/USDT", "ETH/USDT"]
     """
     exchanges = {
@@ -58,12 +79,18 @@ def get_crypto_prices(symbols: List[str]) -> Dict[str, Dict[str, float]]:
         try:
             # Public APIs like fetch_tickers do NOT require API keys.
             tickers = ex.fetch_tickers(symbols)
-            results[name] = {s: tickers[s]["close"] for s in symbols if s in tickers}
+            exchange_prices = {}
+            for symbol in symbols:
+                if symbol not in tickers:
+                    continue
+                reference_price = _extract_reference_price(tickers[symbol])
+                if reference_price is not None:
+                    exchange_prices[symbol] = reference_price
+            results[name] = exchange_prices
         except (NetworkError, ExchangeError, BaseError, KeyError, TypeError) as e:
-            results[name] = f"Error: {str(e)}"
+            results[name] = f"Error: {e}"
 
     return results
-
 
 auditor_llm = None
 
@@ -78,54 +105,107 @@ def _get_auditor_llm():
 
 
 def get_trace_context(state: AgentState) -> str:
-    return f"run_id={state.get('run_id', 'unknown')} cycle_id={state.get('cycle_id', 'unknown')}"
+    run_id = state.get("run_id", "unknown")
+    cycle_id = state.get("cycle_id", "unknown")
+    return f"run_id={run_id} cycle_id={cycle_id}"
 
 
 def with_trace_context(message: str, state: AgentState) -> str:
     return f"[{get_trace_context(state)}] {message}"
 
 
+def _find_best_opportunity(
+    prices: dict[str, dict[str, float] | str], symbols: List[str]
+) -> dict:
+    best_opportunity = {
+        "best_symbol": None,
+        "spread_pct": 0.0,
+        "best_buy_exchange": None,
+        "best_sell_exchange": None,
+        "best_buy_price": 0.0,
+        "best_sell_price": 0.0,
+    }
+
+    for symbol in symbols:
+        exchange_quotes = {
+            exchange_name: exchange_prices[symbol]
+            for exchange_name, exchange_prices in prices.items()
+            if isinstance(exchange_prices, dict) and symbol in exchange_prices
+        }
+        if len(exchange_quotes) < 2:
+            continue
+
+        buy_exchange, buy_price = min(exchange_quotes.items(), key=lambda item: item[1])
+        sell_exchange, sell_price = max(
+            exchange_quotes.items(), key=lambda item: item[1]
+        )
+        spread_pct = ((sell_price - buy_price) / buy_price) * 100
+
+        if spread_pct > best_opportunity["spread_pct"]:
+            best_opportunity = {
+                "best_symbol": symbol,
+                "spread_pct": spread_pct,
+                "best_buy_exchange": buy_exchange,
+                "best_sell_exchange": sell_exchange,
+                "best_buy_price": buy_price,
+                "best_sell_price": sell_price,
+            }
+
+    return best_opportunity
+
+
 def monitor_market(state: AgentState):
     prices = get_crypto_prices.invoke({"symbols": state["symbols"]})
+    opportunity = _find_best_opportunity(prices, state["symbols"])
+    gap_detected = opportunity["spread_pct"] > 0.5
 
-    # Compute the max price gap across exchanges for each symbol
-    max_gap = 0.0
-    best_symbol = None
-    for sym in state["symbols"]:
-        sym_prices = [
-            v[sym] for v in prices.values() if isinstance(v, dict) and sym in v
-        ]
-        if len(sym_prices) >= 2:
-            gap = (max(sym_prices) - min(sym_prices)) / min(sym_prices) * 100
-            if gap > max_gap:
-                max_gap, best_symbol = gap, sym
-    gap_detected = max_gap > 0.5
+    if gap_detected:
+        message = with_trace_context(
+            (
+                "Gap of "
+                f"{opportunity['spread_pct']:.2f}% detected for "
+                f"{opportunity['best_symbol']} "
+                f"({opportunity['best_buy_exchange']} -> "
+                f"{opportunity['best_sell_exchange']})"
+            ),
+            state,
+        )
+    else:
+        message = with_trace_context("No gap > 0.5% found", state)
 
     log_event(
         node="monitor",
         model="Gemini-Flash",
         event_type="OPPORTUNITY" if gap_detected else "WAIT",
-        message=with_trace_context(
-            f"Gap of {max_gap:.2f}% detected between exchanges for {best_symbol}",
-            state,
-        )
-        if gap_detected
-        else with_trace_context("No gap > 0.5% found", state),
-        symbol=best_symbol,
-        spread_pct=max_gap if max_gap > 0 else None,
+        message=message,
+        symbol=opportunity["best_symbol"],
+        spread_pct=opportunity["spread_pct"] if opportunity["spread_pct"] > 0 else None,
     )
 
     return {
         "latest_prices": prices,
-        "spread_pct": max_gap,
+        "spread_pct": opportunity["spread_pct"],
         "opportunity_found": gap_detected,
         "decision": "AUDIT" if gap_detected else "WAIT",
+        "best_symbol": opportunity["best_symbol"],
+        "best_buy_exchange": opportunity["best_buy_exchange"],
+        "best_sell_exchange": opportunity["best_sell_exchange"],
+        "best_buy_price": opportunity["best_buy_price"],
+        "best_sell_price": opportunity["best_sell_price"],
     }
 
 
 def audit_trade(state: AgentState):
     audit_started_at = time.perf_counter()
-    prompt = f"Audit this: {state['latest_prices']}. Is it profitable after 0.3% fees? Reply with GO if yes, NO if not."
+    prompt = (
+        f"Audit this opportunity for {state.get('best_symbol')}: "
+        f"prices={state['latest_prices']}, "
+        f"spread_pct={state.get('spread_pct', 0.0):.4f}, "
+        f"buy_exchange={state.get('best_buy_exchange')}, "
+        f"sell_exchange={state.get('best_sell_exchange')}. "
+        "Is it profitable after 0.3% total fees? "
+        "Reply with GO if yes, NO if not."
+    )
     response = _get_auditor_llm().invoke(prompt)
     audit_duration_ms = round((time.perf_counter() - audit_started_at) * 1000, 2)
 
@@ -137,7 +217,10 @@ def audit_trade(state: AgentState):
             f"{response.content[:500]} | audit_duration_ms={audit_duration_ms:.2f}",
             state,
         ),
-        symbol=state["symbols"][0] if state["symbols"] else None,
+        symbol=(
+            state.get("best_symbol")
+            or (state["symbols"][0] if state["symbols"] else None)
+        ),
     )
 
     is_go_signal = response.content.strip().startswith("GO")
@@ -167,8 +250,13 @@ def execute_trade_node(state: AgentState):
         )
         return {"decision": "ABORTED", "execution_duration_ms": 0.0}
 
-    symbol = "BTC/USDT"
-    amount = 0.01  # Small test amount
+    symbol = state.get("best_symbol") or (
+        state["symbols"][0] if state["symbols"] else None
+    )
+    amount = DEFAULT_ORDER_AMOUNT
+
+    if not symbol:
+        raise RuntimeError("No trade symbol available for execution.")
 
     try:
         api_key = os.environ["KRAKEN_API_KEY"]
@@ -185,9 +273,13 @@ def execute_trade_node(state: AgentState):
             get_trace_context(state),
         )
         order = exchange.create_market_buy_order(symbol, amount)
-        # Estimate profit: spread % * trade notional * 70% (after fees)
-        spread = float(state.get("spread_pct", 0.0) or 0.0)
-        estimated_profit = round(spread * amount * 0.7, 4)
+        buy_price = float(state.get("best_buy_price", 0.0) or 0.0)
+        spread_pct = float(state.get("spread_pct", 0.0) or 0.0)
+        notional_usdt = buy_price * amount
+        estimated_profit = round(
+            max(notional_usdt * ((spread_pct / 100) - TOTAL_FEE_RATE), 0.0),
+            4,
+        )
         execution_duration_ms = round(
             (time.perf_counter() - execution_started_at) * 1000, 2
         )
@@ -196,7 +288,13 @@ def execute_trade_node(state: AgentState):
             model="System",
             event_type="EXECUTED",
             message=with_trace_context(
-                f"Order ID: {order['id']}. Estimated profit: ${estimated_profit:.4f} | execution_duration_ms={execution_duration_ms:.2f}",
+                (
+                    f"Order ID: {order['id']}. "
+                    f"Route: {state.get('best_buy_exchange')} -> "
+                    f"{state.get('best_sell_exchange')}. "
+                    f"Estimated profit: ${estimated_profit:.4f} | "
+                    f"execution_duration_ms={execution_duration_ms:.2f}"
+                ),
                 state,
             ),
             symbol=symbol,
@@ -234,7 +332,8 @@ def execute_trade_node(state: AgentState):
             model="System",
             event_type="FAILED",
             message=with_trace_context(
-                f"{str(e)} | execution_duration_ms={execution_duration_ms:.2f}", state
+                f"{e} | execution_duration_ms={execution_duration_ms:.2f}",
+                state,
             ),
             symbol=symbol,
         )
@@ -339,7 +438,11 @@ def emit_metrics_summary(
     )
 
     logger.info(
-        "event=metrics_summary run_id=%s reason=%s cycles=%s wait=%s audited_cycles=%s executed=%s failed=%s aborted=%s avg_cycle_ms=%.2f avg_audit_ms=%.2f avg_execution_ms=%.2f",
+        (
+            "event=metrics_summary run_id=%s reason=%s cycles=%s wait=%s "
+            "audited_cycles=%s executed=%s failed=%s aborted=%s "
+            "avg_cycle_ms=%.2f avg_audit_ms=%.2f avg_execution_ms=%.2f"
+        ),
         run_id,
         reason,
         cycle_count,
@@ -389,6 +492,11 @@ def run_trading_loop(stop_event: threading.Event, max_cycles: Optional[int] = No
         "audit_duration_ms": 0.0,
         "execution_duration_ms": 0.0,
         "decision": "WAIT",
+        "best_symbol": None,
+        "best_buy_exchange": None,
+        "best_sell_exchange": None,
+        "best_buy_price": 0.0,
+        "best_sell_price": 0.0,
     }
     graph = build_trading_bot()
     loop_interval_seconds = get_loop_interval_seconds()
@@ -402,7 +510,10 @@ def run_trading_loop(stop_event: threading.Event, max_cycles: Optional[int] = No
     execution_count = 0
 
     logger.info(
-        "event=agent_started run_id=%s loop_interval_seconds=%s metrics_log_every_cycles=%s",
+        (
+            "event=agent_started run_id=%s loop_interval_seconds=%s "
+            "metrics_log_every_cycles=%s"
+        ),
         run_id,
         loop_interval_seconds,
         metrics_log_every_cycles,
@@ -436,7 +547,11 @@ def run_trading_loop(stop_event: threading.Event, max_cycles: Optional[int] = No
             execution_count += 1
 
         logger.info(
-            "event=state_update run_id=%s cycle=%s cycle_id=%s decision=%s cycle_duration_ms=%.2f audit_duration_ms=%.2f execution_duration_ms=%.2f",
+            (
+                "event=state_update run_id=%s cycle=%s cycle_id=%s "
+                "decision=%s cycle_duration_ms=%.2f "
+                "audit_duration_ms=%.2f execution_duration_ms=%.2f"
+            ),
             run_id,
             cycle_count,
             cycle_id,

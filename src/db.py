@@ -50,7 +50,8 @@ def log_event(
     with closing(get_connection()) as con:
         con.execute(
             """INSERT INTO trade_events
-               (timestamp, node, model, event_type, message, symbol, spread_pct, profit_usdt)
+               (timestamp, node, model, event_type, message, symbol,
+                spread_pct, profit_usdt)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 datetime.now(timezone.utc).isoformat(),

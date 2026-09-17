@@ -15,7 +15,9 @@ def test_get_crypto_prices_success(mock_ccxt_module):
     mock_ccxt_module.kraken.return_value = mock_kraken
 
     # Mock fetch_tickers behavior
-    mock_binance.fetch_tickers.return_value = {"BTC/USDT": {"close": 65000.0}}
+    mock_binance.fetch_tickers.return_value = {
+        "BTC/USDT": {"bid": 64990.0, "ask": 65010.0, "close": 65000.0}
+    }
     mock_coinbase.fetch_tickers.return_value = {"BTC/USDT": {"close": 65100.0}}
     mock_kraken.fetch_tickers.return_value = {"BTC/USDT": {"close": 65050.0}}
 
