@@ -1,5 +1,10 @@
 # Autonomous Delta-Neutral Arbitrageur
 
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/mhightower/Autonomous_Delta-Neutral_Arbitrageur/workflows/Python%20CI/badge.svg)](https://github.com/mhightower/Autonomous_Delta-Neutral_Arbitrageur/actions)
+[![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+
 Autonomous Delta-Neutral Arbitrageur is an AI-assisted crypto arbitrage agent. It monitors cross-exchange spreads, asks an auditor model for a GO/WAIT decision, optionally executes a sandbox trade, and logs every decision to SQLite for live dashboard monitoring.
 
 ## 🚀 Core Technologies
@@ -56,7 +61,7 @@ The live dashboard displays:
 1. **Clone the repository:**
 
     ```bash
-    git clone https://github.com/your-username/Autonomous_Delta-Neutral_Arbitrageur.git
+    git clone https://github.com/mhightower/Autonomous_Delta-Neutral_Arbitrageur.git
     cd Autonomous_Delta-Neutral_Arbitrageur
     ```
 

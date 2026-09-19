@@ -92,6 +92,7 @@ def get_crypto_prices(symbols: List[str]) -> dict[str, dict[str, float] | str]:
 
     return results
 
+
 auditor_llm = None
 
 
